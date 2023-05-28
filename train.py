@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 import wandb
 from torch import Tensor
-from torch.nn import L1Loss, MSELoss
+from torch.nn import L1Loss, MSELoss, HuberLoss
 from torch.utils.data import ConcatDataset, RandomSampler, WeightedRandomSampler
 #from torchsummary import summary
 from dataloading.model import Camera, TurnSignal
@@ -15,7 +15,7 @@ from dataloading.nvidia import NvidiaTrainDataset, NvidiaValidationDataset, Nvid
     NvidiaWinterValidationDataset, AugmentationConfig
 from dataloading.ouster import OusterTrainDataset, OusterValidationDataset
 from efficient_net import effnetv2_s
-from pilotnet import PilotNetConditional, PilotnetControl, PilotNet
+from pilotnet import PilotNetConditional, PilotnetControl, PilotNet, SwinNetConditional
 from trainer import ControlTrainer, ConditionalTrainer, PilotNetTrainer
 
 
@@ -308,6 +308,11 @@ def train_model(model_name, train_conf, augment_conf):
         model = PilotNetConditional(train_conf.n_input_channels, train_conf.n_outputs, train_conf.n_branches)
         trainer = ConditionalTrainer(model_name, train_conf.output_modality, train_conf.n_branches,
                                      train_conf.wandb_project)
+    elif train_conf.model_type == "swin-conditional":
+        model = SwinNetConditional(train_conf.n_input_channels, train_conf.n_outputs, train_conf.n_branches, 
+                                   type="tiny")
+        trainer = ConditionalTrainer(model_name, train_conf.output_modality, train_conf.n_branches,
+                                     train_conf.wandb_project)
     elif train_conf.model_type == "efficientnet":
         model = effnetv2_s()
         trainer = PilotNetTrainer(model_name, target_name="steering_angle")
@@ -343,6 +348,8 @@ def train_model(model_name, train_conf, augment_conf):
         criterion = WeighedMSELoss(weights)
     elif train_conf.loss == "mae-weighted":
         criterion = WeighedL1Loss(weights)
+    elif train_cong.loss == "huber":
+        criterion = HuberLoss()
     else:
         print(f"Uknown loss function {train_conf.loss}")
         sys.exit()

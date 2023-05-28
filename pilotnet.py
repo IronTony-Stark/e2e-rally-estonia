@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+from vit_pytorch import ViT
+from torchvision.models.swin_transformer import SwinTransformer, Swin_B_Weights, Swin_S_Weights, Swin_T_Weights
+from torchvision.models import swin_b, swin_s, swin_t
 
 
 class PilotNet(nn.Module):
@@ -92,6 +95,74 @@ class PilotNetConditional(nn.Module):
                 nn.LeakyReLU(),
                 nn.Linear(10, n_outputs),
             ) for i in range(n_branches)
+        ])
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.cat([out(x) for out in self.conditional_branches], dim=1)
+        return x
+
+
+# ViT is too fat, consider using Swin instead
+class ViTNetConditional(nn.Module):
+    def __init__(self, n_input_channels=3, n_outputs=1, n_branches=3):
+        super(ViTNetConditional, self).__init__()
+
+        self.features = ViT(
+            image_size=(68, 264),
+            patch_size=4,
+            num_classes=128,
+            dim=256,
+            depth=3,
+            heads=4,
+            mlp_dim=512,
+            dropout=0.1,
+            emb_dropout=0.1
+        )
+
+        self.conditional_branches = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(128, 100),
+                nn.BatchNorm1d(100),
+                nn.LeakyReLU(),
+                nn.Linear(100, 50),
+                nn.BatchNorm1d(50),
+                nn.LeakyReLU(),
+                nn.Linear(50, 10),
+                nn.LeakyReLU(),
+                nn.Linear(10, n_outputs),
+            ) for _ in range(n_branches)
+        ])
+
+    def forward(self, x):
+        x = self.features(x)
+        x = torch.cat([out(x) for out in self.conditional_branches], dim=1)
+        return x
+
+
+class SwinNetConditional(nn.Module):
+    def __init__(self, n_input_channels=3, n_outputs=1, n_branches=3, type='small'):
+        super(SwinNetConditional, self).__init__()
+
+        if type == 'base':
+            self.features = swin_b(weights=Swin_B_Weights.DEFAULT)
+        elif type == 'small':
+            self.features = swin_s(weights=Swin_S_Weights.DEFAULT)
+        else:
+            self.features = swin_t(weights=Swin_T_Weights.DEFAULT)
+
+        self.conditional_branches = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(1000, 100),
+                nn.BatchNorm1d(100),
+                nn.LeakyReLU(),
+                nn.Linear(100, 50),
+                nn.BatchNorm1d(50),
+                nn.LeakyReLU(),
+                nn.Linear(50, 10),
+                nn.LeakyReLU(),
+                nn.Linear(10, n_outputs),
+            ) for _ in range(n_branches)
         ])
 
     def forward(self, x):

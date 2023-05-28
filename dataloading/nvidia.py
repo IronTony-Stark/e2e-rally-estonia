@@ -334,11 +334,15 @@ class NvidiaDataset(Dataset):
 
         frames_df["camera_type"] = camera
 
-        print(f"{dataset_path}: lenght={len(frames_df)}, filtered={len_before_filtering - len_after_filtering}")
+        print(f"{dataset_path}: length={len(frames_df)}, filtered={len_before_filtering - len_after_filtering}")
         frames_df.reset_index(inplace=True)
         return frames_df
 
     def steering_angles_degrees(self):
+        """
+        Converts steering angle that is in radians to degrees
+        radians = angles * np.pi / 180
+        """
         return self.frames.steering_angle.to_numpy() / np.pi * 180
 
 
